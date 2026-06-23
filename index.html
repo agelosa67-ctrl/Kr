@@ -187,6 +187,10 @@ textarea.finp{height:52px;resize:none;}
               onkeydown="if(event.key==='Enter')doLogin()"/>
             <button class="login-go" onclick="doLogin()">→</button>
           </div>
+          <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:#555;cursor:pointer;">
+            <input type="checkbox" id="remember-chk" style="accent-color:#004d40;width:14px;height:14px;"/>
+            Να με θυμάσαι
+          </label>
           <div id="pw-err">Λάθος κωδικός</div>
         </div>
       </div>
@@ -355,20 +359,36 @@ function renderGrid(){
     const umbsH=rowUs.map(u=>{
       const res=getRes(u.label);
       const sk=getStatusKey(u.label);
-      const st=STATUS[sk];
-      if(filterStatus!=="all"&&sk!==filterStatus)
+      // Βρες μελλοντική κράτηση
+      const future=!res?Object.values(reservations)
+        .filter(r=>r.label===u.label&&r.date>selectedDate)
+        .sort((a,b)=>a.date.localeCompare(b.date))[0]||null:null;
+      // Αν υπάρχει μελλοντική, εμφάνισε ως κόκκινη
+      const effectiveSk=res?sk:(future?"booked":sk);
+      const st=STATUS[effectiveSk];
+      if(filterStatus!=="all"&&effectiveSk!==filterStatus)
         return '<div class="umb hidden" style="width:50px;height:62px"></div>';
       const nm=res?(res.name.length>6?res.name.slice(0,5)+"…":res.name):"";
-      const nc=sk==="special"?"#92400e":"rgba(255,255,255,.95)";
-      const tc=sk==="special"?"#92400e":"rgba(255,255,255,.7)";
+      const nc=effectiveSk==="special"?"#92400e":"rgba(255,255,255,.95)";
+      const tc=effectiveSk==="special"?"#92400e":"rgba(255,255,255,.7)";
       const staffPart=res&&res.staff?" · "+res.staff.split(" ")[0]:"";
+      // Badge ημερομηνίας για μελλοντική
+      let nextTag="";
+      if(!res&&future){
+        const[y,m,d]=future.date.split("-");
+        const fnm=future.name?(future.name.length>6?future.name.slice(0,5)+"…":future.name):"";
+        nextTag=`<span class="umb-line" style="color:#fff;font-size:7px;font-weight:800;">${d}/${m}</span>
+                 ${fnm?`<span class="umb-line" style="color:rgba(255,255,255,.9);font-size:7px;">${esc(fnm)}</span>`:""}
+                 ${future.time?`<span class="umb-line" style="color:rgba(255,255,255,.7);font-size:7px;">${future.time}</span>`:""}`;
+      }
       return `<button class="umb${loggedIn?"":" viewer-mode"}" onclick="onUmbClick('${u.uid}')"
-        style="background:${st.bg};border:2px solid ${st.border};box-shadow:${res?"0 2px 8px rgba(0,0,0,.12)":"0 1px 3px rgba(0,0,0,.05)"}"
-        title="${res?esc(res.name)+" · "+(res.time||""):u.label}">
+        style="background:${st.bg};border:2px solid ${st.border};box-shadow:${(res||future)?"0 2px 8px rgba(0,0,0,.12)":"0 1px 3px rgba(0,0,0,.05)"}"
+        title="${res?esc(res.name)+" · "+(res.time||""):future?esc(future.name)+" · "+fmtDate(future.date):u.label}">
         <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2C7 2 3 6.5 3 11h9v9c0 .55.45 1 1 1s1-.45 1-1v-9h9c0-4.5-4-9-11-9z" fill="${st.icon}"/></svg>
         <span class="umb-num" style="color:${st.text}">${u.label}</span>
         ${res?`<span class="umb-line" style="color:${nc}">${esc(nm)}</span>
                <span class="umb-line" style="color:${tc};font-size:8px">${res.time||""}${staffPart}</span>`:""}
+        ${nextTag}
       </button>`;
     }).join("");
     html+=`<div class="grid-row"><div class="row-num">${row*100}</div><div class="umbs">${umbsH}</div></div>`;
@@ -428,6 +448,9 @@ function doLogin(){
   const val=document.getElementById("pw-inp").value;
   if(val===PASSWORD){
     loggedIn=true;
+    const remember=document.getElementById("remember-chk").checked;
+    if(remember) localStorage.setItem("admin_remember","1");
+    else localStorage.removeItem("admin_remember");
     document.getElementById("pw-inp").value="";
     document.getElementById("pw-err").style.display="none";
     document.getElementById("pw-inp").classList.remove("err");
@@ -444,10 +467,19 @@ function doLogin(){
 }
 function doLogout(){
   loggedIn=false;
+  localStorage.removeItem("admin_remember");
   document.getElementById("admin-btns").style.display="none";
   document.getElementById("login-box").style.display="";
   clearClearConfirm();
   renderGrid(); renderLegend();
+}
+function autoLogin(){
+  if(localStorage.getItem("admin_remember")==="1"){
+    loggedIn=true;
+    document.getElementById("login-box").style.display="none";
+    document.getElementById("admin-btns").style.display="flex";
+    renderGrid(); renderLegend();
+  }
 }
 
 // ══ SEARCH ══
@@ -507,10 +539,20 @@ function onUmbClick(uid){if(!loggedIn)return;openModal(uid,null);}
 function openModal(uid,forceMode){
   const u=umbrellas.find(x=>x.uid===uid)||{uid,label:uid};
   const existing=reservations[u.label+"|"+selectedDate]||null;
-  const mode=forceMode||(existing?"view":"add");
-  currentModal={uid:u.uid,label:u.label,mode};
+  // Αν δεν υπάρχει σημερινή κράτηση, ψάξε μελλοντική
+  let futureRes=null;
+  if(!existing){
+    futureRes=Object.values(reservations)
+      .filter(r=>r.label===u.label&&r.date>selectedDate)
+      .sort((a,b)=>a.date.localeCompare(b.date))[0]||null;
+  }
+  const activeRes=existing||null;
+  const mode=forceMode||(existing?"view":futureRes?"future":"add");
+  currentModal={uid:u.uid,label:u.label,mode,futureDate:futureRes?futureRes.date:null};
   currentForm=existing
     ?{name:existing.name,time:existing.time||"",notes:existing.notes||"",status:existing.status||"booked",staff:existing.staff||""}
+    :futureRes&&mode==="future"
+    ?{name:futureRes.name,time:futureRes.time||"",notes:futureRes.notes||"",status:futureRes.status||"booked",staff:futureRes.staff||""}
     :{name:"",time:"10:00",notes:"",status:"booked",staff:""};
   renderModal();
   document.getElementById("res-overlay").style.display="flex";
@@ -523,7 +565,23 @@ function renderModal(){
   document.getElementById("res-strip").style.background=
     f.status==="special"?"#FFD600":"#FF5252";
 
-  if(m.mode==="view"){
+  if(m.mode==="future"){
+    document.getElementById("res-strip").style.background="#ef4444";
+    document.getElementById("res-footer").style.display="none";
+    document.getElementById("res-body").innerHTML=`
+      <div class="mtitle">Ομπρέλα ${m.label}</div>
+      <div class="msub" style="color:#ef4444;font-weight:700;">📅 Κρατημένη για ${fmtDate(m.futureDate)}</div>
+      <div class="info-grid">
+        <div class="icard"><span class="ilabel">👤 Όνομα</span><span class="ival">${esc(f.name)}</span></div>
+        <div class="icard"><span class="ilabel">🕐 Ώρα</span><span class="ival">${f.time||"—"}</span></div>
+        ${f.staff?`<div class="icard"><span class="ilabel">👔 Υπάλληλος</span><span class="ival">${esc(f.staff)}</span></div>`:""}
+        <div class="icard"><span class="ilabel">🏷 Τύπος</span><span class="ival">${st.label}</span></div>
+        ${f.notes?`<div class="icard wide"><span class="ilabel">📝 Σημειώσεις</span><span class="ival">${esc(f.notes)}</span></div>`:""}
+      </div>
+      <div class="mactions">
+        <button class="btn btn-del" onclick="deleteFutureRes()">🗑 Διαγραφή κράτησης ${fmtDate(m.futureDate)}</button>
+      </div>`;
+  } else if(m.mode==="view"){
     document.getElementById("res-footer").style.display="none";
     document.getElementById("res-body").innerHTML=`
       <div class="mtitle">Ομπρέλα ${m.label}</div>
@@ -598,6 +656,18 @@ function saveRes(){
   database.ref("reservations/"+safeKey(currentModal.label,saveDate)).set(entry)
     .then(()=>{showToast("✓ Αποθηκεύτηκε — Ομπρέλα "+currentModal.label,"s");closeModal();})
     .catch(()=>showToast("Σφάλμα αποθήκευσης","e"));
+}
+
+function deleteFutureRes(){
+  const label=currentModal.label;
+  const date=currentModal.futureDate;
+  const entry=reservations[label+"|"+date];
+  if(!entry)return;
+  const trashId=uid();
+  database.ref("trash/"+trashId).set({...entry,trashId,deletedAt:new Date().toISOString()})
+    .then(()=>database.ref("reservations/"+safeKey(label,date)).remove())
+    .then(()=>{showToast("Διαγράφηκε η κράτηση "+fmtDate(date),"i");closeModal();})
+    .catch(()=>showToast("Σφάλμα","e"));
 }
 
 function deleteRes(){
@@ -790,6 +860,7 @@ document.addEventListener("mousedown",function(e){
 
 // ══ INIT ══
 setDate(TODAY);
+autoLogin();
 renderGrid();
 renderLegend();
 renderRowChips();
