@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<title>🏖 Paralia Kratisis</title>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(160deg,#ecfdf5 0%,#e0f7fa 100%);min-height:100vh;padding-bottom:40px;-webkit-text-size-adjust:100%;}
+input,select,textarea{font-size:16px !important;}
+
+/* HEADER */
+header{background:linear-gradient(135deg,#004d40,#00796b);padding:7px 10px;position:sticky;top:0;z-index:50;color:#fff;}
+.hrow{display:flex;align-items:center;gap:5px;min-height:36px;}
+.sync-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#fbbf24;}
+.sync-dot.ok{background:#4ade80;box-shadow:0 0 6px #4ade80;}
+.sync-dot.error{background:#ef4444;}
+.sp{flex:1;}
+.hbtn{border:none;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700;background:rgba(255,255,255,.18);color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;flex-shrink:0;font-family:inherit;}
+.hbtn:active{opacity:.7;}
+.hbtn.danger{background:#c62828;}
+.hbtn.exit-btn{background:rgba(0,0,0,.15);}
+.bdg{background:#ef4444;color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;margin-left:3px;font-weight:800;}
+
+/* SEARCH */
+#search-box{position:relative;}
+#search-inp{border:none;border-radius:8px;padding:6px 10px;font-size:14px !important;outline:none;width:180px;background:rgba(255,255,255,.92);color:#333;}
+.sr-dropdown{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:300;min-width:280px;max-height:300px;overflow-y:auto;display:none;}
+.sr-dropdown.open{display:block;}
+.sr-item{display:flex;align-items:center;gap:10px;width:100%;border:none;background:#fafafa;padding:10px 14px;cursor:pointer;text-align:left;border-bottom:1px solid #f0f0f0;font-family:inherit;}
+.sr-item:nth-child(even){background:#fff;}
+.sr-item:active{background:#f0fdf4;}
+.sr-ico{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid;font-size:10px;font-weight:800;}
+.sr-name{font-weight:700;font-size:13px;color:#222;}
+.sr-sub{font-size:11px;color:#888;}
+.sr-empty{padding:12px 14px;font-size:13px;color:#999;}
+
+/* DATE */
+#date-box{position:relative;}
+#date-dropdown{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:300;padding:12px;display:none;}
+#date-dropdown.open{display:block;}
+#date-inp{border:1.5px solid #d1fae5;border-radius:8px;padding:7px 10px;font-size:14px !important;outline:none;font-family:inherit;}
+
+/* LOGIN */
+#login-box{position:relative;}
+#login-dropdown{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:300;padding:14px;min-width:220px;display:none;}
+#login-dropdown.open{display:block;}
+.login-title{font-size:12px;font-weight:700;color:#444;margin-bottom:8px;}
+.login-row{display:flex;gap:6px;}
+#pw-inp{flex:1;border:1.5px solid #d1fae5;border-radius:8px;padding:7px 10px;font-size:16px !important;outline:none;font-family:inherit;}
+#pw-inp.err{border-color:#ef4444;}
+.login-go{border:none;border-radius:8px;padding:0 14px;background:#004d40;color:#fff;font-weight:700;cursor:pointer;font-size:16px;font-family:inherit;}
+#pw-err{font-size:11px;color:#ef4444;margin-top:6px;display:none;}
+
+/* LEGEND */
+.legend{display:flex;gap:5px;padding:7px 10px;background:#fff;border-bottom:1px solid #e2e8f0;flex-wrap:wrap;align-items:center;}
+.lbtn{display:inline-flex;align-items:center;gap:5px;cursor:pointer;padding:4px 10px;border:1.5px solid transparent;background:transparent;border-radius:20px;font-size:12px;color:#444;font-family:inherit;}
+.lbtn.active{background:#e0f7fa;border-color:#00796b;}
+.ldot{width:11px;height:11px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.lcount{font-weight:700;font-size:13px;color:#333;}
+.clr-btn{color:#00796b;font-weight:700;border:none;background:transparent;cursor:pointer;font-size:12px;padding:4px 8px;font-family:inherit;}
+.row-chips{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-left:auto;}
+.rtxt{font-size:11px;color:#888;}
+.rchip{border-radius:7px;padding:4px 9px;font-size:12px;font-weight:600;cursor:pointer;background:#f1f5f9;color:#555;border:1px solid #e2e8f0;font-family:inherit;}
+.rchip.active{background:#004d40;color:#fff;border:none;}
+.viewer-tag{font-size:11px;color:#bbb;margin-left:4px;}
+
+/* GRID */
+.grid-wrap{padding:10px 6px;overflow-x:auto;}
+.grid-row{display:flex;align-items:flex-start;margin-bottom:6px;}
+.row-num{font-size:10px;font-weight:800;color:#059669;min-width:26px;padding-top:12px;text-align:right;padding-right:6px;flex-shrink:0;}
+.umbs{display:flex;gap:4px;flex-wrap:nowrap;}
+.umb{width:50px;height:62px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px;flex-shrink:0;border:2px solid transparent;cursor:pointer;}
+.umb:active{opacity:.7;}
+.umb.viewer-mode{cursor:default;}
+.umb.hidden{background:transparent !important;border:1px dashed #ddd !important;opacity:.2;}
+.umb-num{font-size:10px;font-weight:800;line-height:1.2;margin-top:1px;}
+.umb-line{font-size:9px;line-height:1.15;text-align:center;max-width:46px;overflow:hidden;white-space:nowrap;}
+
+/* OVERLAY */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:100;}
+
+/* MODAL */
+.modal{background:#fff;border-radius:20px 20px 0 0;overflow:hidden;width:100%;max-width:480px;box-shadow:0 -8px 40px rgba(0,0,0,.2);position:relative;max-height:90vh;display:flex;flex-direction:column;}
+.mstrip{height:5px;flex-shrink:0;}
+.big-x{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:50%;border:none;background:#dc2626;color:#fff;font-size:17px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:20;line-height:1;}
+.mbody{padding:14px 18px 8px;overflow-y:auto;flex:1;}
+.mtitle{font-size:21px;font-weight:900;color:#004d40;line-height:1;}
+.msub{font-size:12px;color:#888;margin-top:2px;margin-bottom:12px;}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.icard{background:#f8fafc;border-radius:10px;padding:8px 11px;}
+.icard.wide{grid-column:1/-1;}
+.ilabel{display:block;font-size:10px;color:#888;margin-bottom:2px;}
+.ival{font-size:14px;font-weight:700;color:#1e293b;}
+.type-row{display:flex;gap:6px;margin-bottom:12px;}
+.tbtn{flex:1;padding:8px 0;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;border:2px solid #e2e8f0;background:#f8fafc;color:#aaa;font-family:inherit;}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;}
+.fgrid .full{grid-column:1/-1;}
+.flabel{display:block;font-size:11px;color:#555;margin-bottom:4px;font-weight:700;}
+.finp{width:100%;border:1.5px solid #d1fae5;border-radius:10px;padding:9px 11px;font-size:16px !important;outline:none;font-family:inherit;background:#f8fafc;}
+.finp:focus{border-color:#00796b;}
+textarea.finp{height:52px;resize:none;}
+.mactions{display:flex;gap:8px;margin-top:4px;}
+.sticky-acts{display:flex;gap:8px;padding:10px 18px 24px;border-top:1px solid #f0fdf4;background:#fff;flex-shrink:0;position:sticky;bottom:0;z-index:10;}
+.btn{flex:1;padding:13px 0;border-radius:12px;border:none;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;}
+.btn-save{background:#059669;color:#fff;}
+.btn-cancel{background:#f1f5f9;color:#64748b;}
+.btn-edit{background:#0284c7;color:#fff;}
+.btn-del{background:#dc2626;color:#fff;}
+.list-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0fdf4;gap:8px;}
+.sbtn{border:none;border-radius:8px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;}
+.cfg-umbs{display:flex;flex-wrap:wrap;gap:5px;}
+.cu{display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:10px;padding:6px 7px;border:1.5px solid;}
+.cu.on{background:#f0fdf4;border-color:#86efac;}
+.cu.off{background:#f8fafc;border-color:#e2e8f0;}
+.cu input[type=text]{width:40px;border:none;text-align:center;font-weight:800;font-size:12px;background:transparent;outline:none;color:#333;font-family:inherit;}
+.cu-btns{display:flex;gap:4px;align-items:center;}
+.cu-add{width:50px;min-height:58px;border-radius:10px;border:2px dashed #86efac;background:transparent;cursor:pointer;font-size:22px;color:#4ade80;font-weight:900;font-family:inherit;}
+.add-row-btn{width:100%;padding:10px;border-radius:12px;border:2px dashed #86efac;background:transparent;color:#059669;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:4px;font-family:inherit;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);color:#fff;padding:11px 22px;border-radius:50px;font-size:14px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:400;white-space:nowrap;opacity:0;transition:opacity .3s;pointer-events:none;}
+.toast.show{opacity:1;}
+.toast.s{background:#15803d;}
+.toast.i{background:#1d4ed8;}
+.toast.e{background:#dc2626;}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="hrow">
+      <div id="sync-dot" class="sync-dot" title="Σύνδεση…"></div>
+      <div class="sp"></div>
+
+      <!-- SEARCH -->
+      <div id="search-box">
+        <div id="search-closed">
+          <button class="hbtn" onclick="openSearch()">🔍</button>
+        </div>
+        <div id="search-open" style="display:none;align-items:center;gap:4px;">
+          <input id="search-inp" placeholder="Όνομα, αριθμός, υπάλληλος…"
+            oninput="doSearch()" autocomplete="off" autocorrect="off" spellcheck="false"/>
+          <button class="hbtn" onclick="closeSearch()">✕</button>
+        </div>
+        <div id="sr-dropdown" class="sr-dropdown"></div>
+      </div>
+
+      <!-- DATE -->
+      <div id="date-box">
+        <button class="hbtn" onclick="toggleDate()" id="date-btn">📅 —</button>
+        <div id="date-dropdown">
+          <input id="date-inp" type="date" onchange="onDateChange(this.value)"/>
+        </div>
+      </div>
+
+      <!-- ADMIN BUTTONS -->
+      <div id="admin-btns" style="display:none;align-items:center;gap:4px;">
+        <button class="hbtn" onclick="openPanel('staff')">Προσωπικό</button>
+        <button class="hbtn" onclick="openConfig()">⚙</button>
+        <button class="hbtn" id="trash-btn" onclick="openPanel('trash')">↩</button>
+        <button class="hbtn danger" id="clear-confirm-btn" style="display:none" onclick="clearAllToday()">Επιβεβαίωση</button>
+        <button class="hbtn" id="clear-btn" onclick="showClearConfirm()">🗑</button>
+        <button class="hbtn exit-btn" onclick="doLogout()">Έξοδος</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div id="login-box">
+        <button class="hbtn" onclick="toggleLogin()">🔒</button>
+        <div id="login-dropdown">
+          <div class="login-title">Κωδικός διαχειριστή</div>
+          <div class="login-row">
+            <input id="pw-inp" type="password" placeholder="••••••••"
+              onkeydown="if(event.key==='Enter')doLogin()"/>
+            <button class="login-go" onclick="doLogin()">→</button>
+          </div>
+          <div id="pw-err">Λάθος κωδικός</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <button class="lbtn" id="lb-free"    onclick="toggleFilter('free')">
+      <span class="ldot" style="background:#f0fdf4;border:1.5px solid #86efac"></span>
+      <span class="lcount" id="cnt-free">0</span><span>Ελεύθερη</span>
+    </button>
+    <button class="lbtn" id="lb-booked"  onclick="toggleFilter('booked')">
+      <span class="ldot" style="background:#FF5252;border:1.5px solid #c62828"></span>
+      <span class="lcount" id="cnt-booked">0</span><span>Κρατημένη</span>
+    </button>
+    <button class="lbtn" id="lb-special" onclick="toggleFilter('special')">
+      <span class="ldot" style="background:#FFD600;border:1.5px solid #F9A825"></span>
+      <span class="lcount" id="cnt-special">0</span><span>Σπέσιαλ</span>
+    </button>
+    <button class="clr-btn" id="clr-filter" style="display:none" onclick="clearFilter()">✕</button>
+    <div class="row-chips">
+      <span class="rtxt">Σειρά:</span>
+      <div id="row-chips-wrap" style="display:flex;gap:3px;flex-wrap:wrap;"></div>
+    </div>
+    <span class="viewer-tag" id="viewer-tag">👁</span>
+  </div>
+
+  <div class="grid-wrap" id="grid"></div>
+</div>
+
+<!-- RESERVATION MODAL -->
+<div id="res-overlay" class="overlay" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="big-x" onclick="closeModal()">✕</button>
+    <div class="mstrip" id="res-strip"></div>
+    <div class="mbody" id="res-body"></div>
+    <div class="sticky-acts" id="res-footer" style="display:none">
+      <button class="btn btn-cancel" onclick="closeModal()">Ακύρωση</button>
+      <button class="btn btn-save" onclick="saveRes()">💾 Αποθήκευση</button>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL (staff / trash / config) -->
+<div id="panel-overlay" class="overlay" style="display:none" onclick="if(event.target===this)closePanel()">
+  <div class="modal" style="max-width:440px">
+    <button class="big-x" onclick="closePanel()">✕</button>
+    <div class="mstrip" style="background:#004d40"></div>
+    <div class="mbody" id="panel-body"></div>
+    <div class="sticky-acts" id="panel-footer" style="display:none">
+      <button class="btn btn-cancel" onclick="closePanel()">Ακύρωση</button>
+      <button class="btn btn-save" onclick="saveConfig()">💾 Αποθήκευση</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ FIREBASE v8 — same as working app ══
+firebase.initializeApp({
+  apiKey:            "AIzaSyC26pjtV6oNq5E1wfRyMoXIGkRS9y9ly_g",
+  authDomain:        "imperial-kratisis.firebaseapp.com",
+  databaseURL:       "https://imperial-kratisis-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:         "imperial-kratisis",
+  storageBucket:     "imperial-kratisis.firebasestorage.app",
+  messagingSenderId: "734891573148",
+  appId:             "1:734891573148:web:1d9148f4234189aa209259",
+});
+const database = firebase.database();
+
+// ══ CONSTANTS ══
+const PASSWORD = "imperial2018";
+const TODAY    = new Date().toISOString().slice(0,10);
+
+const STATUS = {
+  free:    {bg:"#f0fdf4",border:"#86efac",icon:"#4ade80",text:"#555",    label:"Ελεύθερη"},
+  booked:  {bg:"#FF5252",border:"#c62828",icon:"#fff",   text:"#fff",    label:"Κρατημένη"},
+  special: {bg:"#FFD600",border:"#F9A825",icon:"#92400e",text:"#92400e", label:"Σπέσιαλ"},
+};
+
+// ══ STATE ══
+let loggedIn     = false;
+let selectedDate = TODAY;
+let filterStatus = "all";
+let filterRow    = 0;
+let umbrellas    = buildDefault();
+let staff        = [];
+let reservations = {};
+let trash        = {};
+let cfgUmbs      = [];
+let currentModal = null;
+let currentForm  = {};
+let toastTimer   = null;
+let clearConfirmVisible = false;
+let currentPanel = null;
+
+function buildDefault(){
+  const list=[];
+  for(let r=1;r<=9;r++) for(let c=1;c<=23;c++)
+    list.push({uid:`${r}-${c}`,row:r,label:String(r*100+c),enabled:true});
+  return list;
+}
+
+function safeKey(label,date){return label+"__"+date;}
+function uid(){return Math.random().toString(36).slice(2,9);}
+function fmtDate(d){if(!d)return"";const[y,m,day]=d.split("-");return day+"/"+m+"/"+y;}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+
+// ══ FIREBASE LISTENERS ══
+database.ref("reservations").on("value", snap=>{
+  const data=snap.val()||{};
+  reservations={};
+  Object.values(data).forEach(v=>{ if(v&&v.label&&v.date) reservations[v.label+"|"+v.date]=v; });
+  document.getElementById("sync-dot").className="sync-dot ok";
+  renderGrid(); renderLegend();
+}, ()=>{ document.getElementById("sync-dot").className="sync-dot error"; });
+
+database.ref("config/umbrellas").on("value", snap=>{
+  const data=snap.val();
+  umbrellas=Array.isArray(data)?data:buildDefault();
+  renderGrid(); renderLegend(); renderRowChips();
+});
+
+database.ref("config/staff").on("value", snap=>{
+  const data=snap.val();
+  staff=Array.isArray(data)?data:[];
+});
+
+database.ref("trash").on("value", snap=>{
+  trash=snap.val()||{};
+  const cnt=Object.keys(trash).length;
+  const btn=document.getElementById("trash-btn");
+  if(btn) btn.innerHTML="↩"+(cnt>0?'<span class="bdg">'+cnt+'</span>':"");
+});
+
+// ══ GRID ══
+function getRes(label){return reservations[label+"|"+selectedDate]||null;}
+function getStatusKey(label){const r=getRes(label);return r?(r.status||"booked"):"free";}
+
+function renderGrid(){
+  const rows=[...new Set(umbrellas.map(u=>u.row))].sort((a,b)=>a-b);
+  const show=filterRow===0?rows:[filterRow];
+  let html="";
+  show.forEach(row=>{
+    const rowUs=umbrellas.filter(u=>u.row===row&&u.enabled).sort((a,b)=>Number(a.label)-Number(b.label));
+    if(!rowUs.length) return;
+    const umbsH=rowUs.map(u=>{
+      const res=getRes(u.label);
+      const sk=getStatusKey(u.label);
+      const st=STATUS[sk];
+      if(filterStatus!=="all"&&sk!==filterStatus)
+        return '<div class="umb hidden" style="width:50px;height:62px"></div>';
+      const nm=res?(res.name.length>6?res.name.slice(0,5)+"…":res.name):"";
+      const nc=sk==="special"?"#92400e":"rgba(255,255,255,.95)";
+      const tc=sk==="special"?"#92400e":"rgba(255,255,255,.7)";
+      const staffPart=res&&res.staff?" · "+res.staff.split(" ")[0]:"";
+      return `<button class="umb${loggedIn?"":" viewer-mode"}" onclick="onUmbClick('${u.uid}')"
+        style="background:${st.bg};border:2px solid ${st.border};box-shadow:${res?"0 2px 8px rgba(0,0,0,.12)":"0 1px 3px rgba(0,0,0,.05)"}"
+        title="${res?esc(res.name)+" · "+(res.time||""):u.label}">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2C7 2 3 6.5 3 11h9v9c0 .55.45 1 1 1s1-.45 1-1v-9h9c0-4.5-4-9-11-9z" fill="${st.icon}"/></svg>
+        <span class="umb-num" style="color:${st.text}">${u.label}</span>
+        ${res?`<span class="umb-line" style="color:${nc}">${esc(nm)}</span>
+               <span class="umb-line" style="color:${tc};font-size:8px">${res.time||""}${staffPart}</span>`:""}
+      </button>`;
+    }).join("");
+    html+=`<div class="grid-row"><div class="row-num">${row*100}</div><div class="umbs">${umbsH}</div></div>`;
+  });
+  document.getElementById("grid").innerHTML=html;
+}
+
+function renderLegend(){
+  const en=umbrellas.filter(u=>u.enabled);
+  const booked=en.filter(u=>{const r=getRes(u.label);return r&&r.status!=="special";}).length;
+  const special=en.filter(u=>{const r=getRes(u.label);return r&&r.status==="special";}).length;
+  const free=en.length-booked-special;
+  document.getElementById("cnt-free").textContent=free;
+  document.getElementById("cnt-booked").textContent=booked;
+  document.getElementById("cnt-special").textContent=special;
+  ["free","booked","special"].forEach(k=>{
+    document.getElementById("lb-"+k).className="lbtn"+(filterStatus===k?" active":"");
+  });
+  document.getElementById("clr-filter").style.display=filterStatus!=="all"?"":"none";
+  document.getElementById("viewer-tag").style.display=loggedIn?"none":"";
+}
+
+function renderRowChips(){
+  const rows=[...new Set(umbrellas.map(u=>u.row))].sort((a,b)=>a-b);
+  let html=`<button class="rchip${filterRow===0?" active":""}" onclick="setFilterRow(0)">Όλες</button>`;
+  rows.forEach(r=>{
+    html+=`<button class="rchip${filterRow===r?" active":""}" onclick="setFilterRow(${r})">${r*100}</button>`;
+  });
+  document.getElementById("row-chips-wrap").innerHTML=html;
+}
+
+function setFilterRow(r){filterRow=(filterRow===r&&r!==0)?0:r;renderGrid();renderRowChips();}
+function toggleFilter(k){filterStatus=filterStatus===k?"all":k;renderGrid();renderLegend();}
+function clearFilter(){filterStatus="all";renderGrid();renderLegend();}
+
+// ══ DATE ══
+function setDate(d){
+  selectedDate=d;
+  document.getElementById("date-btn").textContent="📅 "+fmtDate(d);
+  document.getElementById("date-inp").value=d;
+  renderGrid(); renderLegend();
+}
+function toggleDate(){
+  document.getElementById("date-dropdown").classList.toggle("open");
+  document.getElementById("login-dropdown").classList.remove("open");
+}
+function onDateChange(v){setDate(v);document.getElementById("date-dropdown").classList.remove("open");}
+
+// ══ LOGIN ══
+function toggleLogin(){
+  document.getElementById("login-dropdown").classList.toggle("open");
+  document.getElementById("date-dropdown").classList.remove("open");
+  if(document.getElementById("login-dropdown").classList.contains("open"))
+    setTimeout(()=>document.getElementById("pw-inp").focus(),80);
+}
+function doLogin(){
+  const val=document.getElementById("pw-inp").value;
+  if(val===PASSWORD){
+    loggedIn=true;
+    document.getElementById("pw-inp").value="";
+    document.getElementById("pw-err").style.display="none";
+    document.getElementById("pw-inp").classList.remove("err");
+    document.getElementById("login-dropdown").classList.remove("open");
+    document.getElementById("login-box").style.display="none";
+    document.getElementById("admin-btns").style.display="flex";
+    renderGrid(); renderLegend();
+  } else {
+    document.getElementById("pw-inp").classList.add("err");
+    document.getElementById("pw-err").style.display="block";
+    document.getElementById("pw-inp").value="";
+    setTimeout(()=>document.getElementById("pw-inp").focus(),50);
+  }
+}
+function doLogout(){
+  loggedIn=false;
+  document.getElementById("admin-btns").style.display="none";
+  document.getElementById("login-box").style.display="";
+  clearClearConfirm();
+  renderGrid(); renderLegend();
+}
+
+// ══ SEARCH ══
+function openSearch(){
+  document.getElementById("search-closed").style.display="none";
+  document.getElementById("search-open").style.display="flex";
+  setTimeout(()=>document.getElementById("search-inp").focus(),60);
+}
+function closeSearch(){
+  document.getElementById("search-closed").style.display="";
+  document.getElementById("search-open").style.display="none";
+  document.getElementById("search-inp").value="";
+  document.getElementById("sr-dropdown").classList.remove("open");
+  document.getElementById("sr-dropdown").innerHTML="";
+}
+function doSearch(){
+  const q=(document.getElementById("search-inp").value||"").toLowerCase().trim();
+  const dd=document.getElementById("sr-dropdown");
+  if(!q){dd.classList.remove("open");dd.innerHTML="";return;}
+  const hits=Object.values(reservations).filter(r=>
+    (r.label||"").toLowerCase().includes(q)||
+    (r.name||"").toLowerCase().includes(q)||
+    (r.staff||"").toLowerCase().includes(q)||
+    (r.notes||"").toLowerCase().includes(q)
+  ).sort((a,b)=>{
+    if(a.date===selectedDate&&b.date!==selectedDate)return -1;
+    if(b.date===selectedDate&&a.date!==selectedDate)return 1;
+    return(b.date||"").localeCompare(a.date||"");
+  }).slice(0,20);
+  if(!hits.length){
+    dd.innerHTML='<div class="sr-empty">Δεν βρέθηκε αποτέλεσμα</div>';
+    dd.classList.add("open");return;
+  }
+  dd.innerHTML=hits.map(r=>{
+    const sk=r.status||"booked";const st=STATUS[sk]||STATUS.booked;
+    return `<button class="sr-item" onclick="openFromSearch('${esc(r.label)}','${r.date}')">
+      <div class="sr-ico" style="background:${st.bg};border-color:${st.border};color:${st.text}">${r.label}</div>
+      <div style="flex:1;min-width:0">
+        <div class="sr-name">${esc(r.name)}</div>
+        <div class="sr-sub">${r.date===selectedDate?"Σήμερα":fmtDate(r.date)} · ${r.time||""}${r.staff?' · <span style="color:#059669">'+esc(r.staff)+'</span>':""}</div>
+      </div>
+      <span style="font-size:10px;font-weight:700;color:${st.text};background:${st.bg};border:1px solid ${st.border};border-radius:6px;padding:2px 6px;flex-shrink:0">${st.label}</span>
+    </button>`;
+  }).join("");
+  dd.classList.add("open");
+}
+function openFromSearch(label,date){
+  closeSearch();
+  setDate(date);
+  const u=umbrellas.find(x=>x.label===label)||{uid:label,label};
+  openModal(u.uid,"view");
+}
+
+// ══ MODAL ══
+function onUmbClick(uid){if(!loggedIn)return;openModal(uid,null);}
+
+function openModal(uid,forceMode){
+  const u=umbrellas.find(x=>x.uid===uid)||{uid,label:uid};
+  const existing=reservations[u.label+"|"+selectedDate]||null;
+  const mode=forceMode||(existing?"view":"add");
+  currentModal={uid:u.uid,label:u.label,mode};
+  currentForm=existing
+    ?{name:existing.name,time:existing.time||"",notes:existing.notes||"",status:existing.status||"booked",staff:existing.staff||""}
+    :{name:"",time:"10:00",notes:"",status:"booked",staff:""};
+  renderModal();
+  document.getElementById("res-overlay").style.display="flex";
+}
+
+function renderModal(){
+  if(!currentModal)return;
+  const m=currentModal,f=currentForm;
+  const st=STATUS[f.status]||STATUS.booked;
+  document.getElementById("res-strip").style.background=
+    f.status==="special"?"#FFD600":"#FF5252";
+
+  if(m.mode==="view"){
+    document.getElementById("res-footer").style.display="none";
+    document.getElementById("res-body").innerHTML=`
+      <div class="mtitle">Ομπρέλα ${m.label}</div>
+      <div class="msub">${fmtDate(selectedDate)}</div>
+      <div class="info-grid">
+        <div class="icard"><span class="ilabel">👤 Όνομα</span><span class="ival">${esc(f.name)}</span></div>
+        <div class="icard"><span class="ilabel">🕐 Ώρα</span><span class="ival">${f.time}</span></div>
+        ${f.staff?`<div class="icard"><span class="ilabel">👔 Υπάλληλος</span><span class="ival">${esc(f.staff)}</span></div>`:""}
+        <div class="icard"><span class="ilabel">🏷 Τύπος</span><span class="ival">${st.label}</span></div>
+        ${f.notes?`<div class="icard wide"><span class="ilabel">📝 Σημειώσεις</span><span class="ival">${esc(f.notes)}</span></div>`:""}
+      </div>
+      <div class="mactions">
+        <button class="btn btn-edit" onclick="switchModalMode('add')">✏️ Επεξεργασία</button>
+        <button class="btn btn-del"  onclick="deleteRes()">🗑 Διαγραφή</button>
+      </div>`;
+  } else {
+    document.getElementById("res-footer").style.display="flex";
+    const staffOpts=staff.map(s=>`<option value="${esc(s)}"${f.staff===s?" selected":""}>${esc(s)}</option>`).join("");
+    document.getElementById("res-body").innerHTML=`
+      <div class="mtitle">Ομπρέλα ${m.label}</div>
+      <div class="msub">${fmtDate(selectedDate)}</div>
+      <div class="type-row">
+        ${["booked","special"].map(k=>{
+          const s=STATUS[k],active=f.status===k;
+          return `<button class="tbtn" onclick="setFormStatus('${k}')"
+            style="border-color:${active?s.border:"#e2e8f0"};background:${active?s.bg:"#f8fafc"};color:${active?s.text:"#aaa"}">${s.label}</button>`;
+        }).join("")}
+      </div>
+      <div class="fgrid">
+        <div class="full"><label class="flabel">Όνομα</label>
+          <input class="finp" id="f-name" placeholder="π.χ. Γιώργος" value="${esc(f.name)}"
+            oninput="currentForm.name=this.value" autocomplete="off"/></div>
+        <div><label class="flabel">Ώρα</label>
+          <input class="finp" id="f-time" type="time" value="${f.time}" oninput="currentForm.time=this.value"/></div>
+        <div><label class="flabel">Υπάλληλος</label>
+          <select class="finp" id="f-staff" onchange="currentForm.staff=this.value">
+            <option value="">— Κανείς —</option>${staffOpts}
+          </select></div>
+        <div class="full"><label class="flabel">Σημειώσεις</label>
+          <textarea class="finp" id="f-notes" placeholder="Προαιρετικά…" oninput="currentForm.notes=this.value">${esc(f.notes)}</textarea></div>
+      </div>`;
+    setTimeout(()=>{const el=document.getElementById("f-name");if(el)el.focus();},80);
+  }
+}
+
+function switchModalMode(mode){
+  // grab latest DOM values before re-render
+  const n=document.getElementById("f-name");   if(n)currentForm.name=n.value;
+  const t=document.getElementById("f-time");   if(t)currentForm.time=t.value;
+  const s=document.getElementById("f-staff");  if(s)currentForm.staff=s.value;
+  const nt=document.getElementById("f-notes"); if(nt)currentForm.notes=nt.value;
+  currentModal.mode=mode; renderModal();
+}
+function setFormStatus(s){currentForm.status=s;renderModal();}
+function closeModal(){document.getElementById("res-overlay").style.display="none";currentModal=null;currentForm={};}
+
+function saveRes(){
+  const n=document.getElementById("f-name");   if(n)currentForm.name=n.value;
+  const t=document.getElementById("f-time");   if(t)currentForm.time=t.value;
+  const s=document.getElementById("f-staff");  if(s)currentForm.staff=s.value;
+  const nt=document.getElementById("f-notes"); if(nt)currentForm.notes=nt.value;
+  // όνομα ΔΕΝ είναι υποχρεωτικό
+  const entry={
+    label:currentModal.label,date:selectedDate,
+    name:(currentForm.name||"").trim(),time:currentForm.time||"",
+    notes:(currentForm.notes||"").trim(),status:currentForm.status||"booked",
+    staff:currentForm.staff||"",updatedAt:new Date().toISOString(),
+  };
+  database.ref("reservations/"+safeKey(currentModal.label,selectedDate)).set(entry)
+    .then(()=>{showToast("✓ Αποθηκεύτηκε — Ομπρέλα "+currentModal.label,"s");closeModal();})
+    .catch(()=>showToast("Σφάλμα αποθήκευσης","e"));
+}
+
+function deleteRes(){
+  const label=currentModal.label;
+  const entry=reservations[label+"|"+selectedDate];
+  if(!entry)return;
+  const trashId=uid();
+  database.ref("trash/"+trashId).set({...entry,trashId,deletedAt:new Date().toISOString()})
+    .then(()=>database.ref("reservations/"+safeKey(label,selectedDate)).remove())
+    .then(()=>{showToast("Διαγράφηκε — μπορείς να το επαναφέρεις","i");closeModal();})
+    .catch(()=>showToast("Σφάλμα","e"));
+}
+
+// ══ CLEAR ALL ══
+function showClearConfirm(){
+  clearConfirmVisible=true;
+  document.getElementById("clear-btn").style.display="none";
+  document.getElementById("clear-confirm-btn").style.display="";
+  setTimeout(()=>{if(clearConfirmVisible)clearClearConfirm();},4000);
+}
+function clearClearConfirm(){
+  clearConfirmVisible=false;
+  document.getElementById("clear-btn").style.display="";
+  document.getElementById("clear-confirm-btn").style.display="none";
+}
+function clearAllToday(){
+  const en=umbrellas.filter(u=>u.enabled);
+  const toDel=en.filter(u=>reservations[u.label+"|"+selectedDate]);
+  let p=Promise.resolve();
+  toDel.forEach(u=>{
+    const entry=reservations[u.label+"|"+selectedDate];
+    const trashId=uid();
+    p=p.then(()=>database.ref("trash/"+trashId).set({...entry,trashId,deletedAt:new Date().toISOString()}))
+       .then(()=>database.ref("reservations/"+safeKey(u.label,selectedDate)).remove());
+  });
+  p.then(()=>{clearClearConfirm();showToast("Διαγράφηκαν "+toDel.length+" κρατήσεις","i");})
+   .catch(()=>showToast("Σφάλμα","e"));
+}
+
+// ══ PANELS ══
+function openPanel(type){
+  currentPanel=type;
+  document.getElementById("panel-footer").style.display="none";
+  if(type==="staff") renderStaffPanel();
+  else if(type==="trash") renderTrashPanel();
+  document.getElementById("panel-overlay").style.display="flex";
+}
+function closePanel(){document.getElementById("panel-overlay").style.display="none";currentPanel=null;}
+
+function renderStaffPanel(){
+  const list=staff.length===0
+    ?'<p style="color:#bbb;font-size:13px;text-align:center;padding:20px 0">Δεν υπάρχει προσωπικό.</p>'
+    :staff.map(s=>`<div class="list-row"><span style="font-size:14px;font-weight:600">${esc(s)}</span>
+      <button class="sbtn" style="background:#fee2e2;color:#dc2626" onclick="removeStaff('${esc(s)}')">Αφαίρεση</button></div>`).join("");
+  document.getElementById("panel-body").innerHTML=`
+    <div class="mtitle" style="margin-bottom:16px">Προσωπικό</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <input class="finp" style="flex:1" id="staff-inp" placeholder="Όνομα…"
+        onkeydown="if(event.key==='Enter')addStaff()" autocomplete="off"/>
+      <button class="btn btn-save" style="flex:none;padding:0 16px;border-radius:10px" onclick="addStaff()">+</button>
+    </div>${list}`;
+}
+function addStaff(){
+  const inp=document.getElementById("staff-inp");
+  const name=(inp?inp.value:"").trim();
+  if(!name||staff.includes(name))return;
+  const updated=[...staff,name];
+  database.ref("config/staff").set(updated).then(()=>renderStaffPanel());
+}
+function removeStaff(name){
+  database.ref("config/staff").set(staff.filter(s=>s!==name)).then(()=>renderStaffPanel());
+}
+
+function renderTrashPanel(){
+  const items=Object.values(trash).sort((a,b)=>(b.deletedAt||"").localeCompare(a.deletedAt||""));
+  const list=items.length===0
+    ?'<p style="color:#bbb;font-size:13px;text-align:center;padding:20px 0">Ο κάδος είναι άδειος.</p>'
+    :items.map(item=>`<div class="list-row">
+        <div>
+          <div style="font-weight:700;font-size:13px">Ομπρέλα ${item.label} — ${esc(item.name)}</div>
+          <div style="font-size:11px;color:#888">${fmtDate(item.date)} · ${item.time||""}${item.staff?" · "+esc(item.staff):""}</div>
+          <div style="font-size:10px;color:#bbb">${new Date(item.deletedAt).toLocaleString("el-GR")}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <button class="sbtn" style="background:#dcfce7;color:#166534" onclick="restoreItem('${item.trashId}')">↩</button>
+          <button class="sbtn" style="background:#f3f4f6;color:#6b7280" onclick="clearItem('${item.trashId}')">✕</button>
+        </div></div>`).join("");
+  document.getElementById("panel-body").innerHTML=`<div class="mtitle" style="margin-bottom:16px">Κάδος (${items.length})</div>${list}`;
+}
+function restoreItem(trashId){
+  const item=trash[trashId];if(!item)return;
+  const{trashId:_,deletedAt,...entry}=item;
+  database.ref("reservations/"+safeKey(entry.label,entry.date)).set(entry)
+    .then(()=>database.ref("trash/"+trashId).remove())
+    .then(()=>{showToast("↩ Επαναφέρθηκε!","s");renderTrashPanel();})
+    .catch(()=>showToast("Σφάλμα","e"));
+}
+function clearItem(trashId){
+  database.ref("trash/"+trashId).remove().then(()=>renderTrashPanel());
+}
+
+// ══ CONFIG ══
+function openConfig(){
+  cfgUmbs=JSON.parse(JSON.stringify(umbrellas));
+  currentPanel="config";
+  document.getElementById("panel-footer").style.display="flex";
+  renderConfigPanel();
+  document.getElementById("panel-overlay").style.display="flex";
+}
+function renderConfigPanel(){
+  const rows=[...new Set(cfgUmbs.map(u=>u.row))].sort((a,b)=>a-b);
+  const html=rows.map(row=>{
+    const rowUs=cfgUmbs.filter(u=>u.row===row).sort((a,b)=>Number(a.label)-Number(b.label));
+    const umbsH=rowUs.map(u=>`
+      <div class="cu ${u.enabled?"on":"off"}">
+        <input type="text" value="${esc(u.label)}" onchange="cfgSetLabel('${u.uid}',this.value)"/>
+        <div class="cu-btns">
+          <input type="checkbox" ${u.enabled?"checked":""} onchange="cfgToggle('${u.uid}')" style="accent-color:#059669;width:14px;height:14px"/>
+          <button onclick="cfgRemoveUmb('${u.uid}')" style="border:none;background:none;color:#ef4444;cursor:pointer;font-weight:900;font-size:14px;padding:0;line-height:1">✕</button>
+        </div></div>`).join("");
+    return `<div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-weight:800;font-size:13px;color:#004d40">Σειρά ${row*100}</span>
+        <button class="sbtn" style="background:#fee2e2;color:#dc2626;font-size:11px;padding:3px 8px" onclick="cfgRemoveRow(${row})">Αφαίρεση σειράς</button>
+      </div>
+      <div class="cfg-umbs">${umbsH}
+        <button class="cu-add" onclick="cfgAddUmb(${row})">+</button>
+      </div></div>`;
+  }).join("");
+  document.getElementById("panel-body").innerHTML=`
+    <div class="mtitle" style="margin-bottom:4px">⚙ Ομπρέλες</div>
+    <div style="font-size:12px;color:#888;margin-bottom:14px">✕ = διαγραφή · ☑ = ενεργή · κλικ στον αριθμό = μετονομασία</div>
+    ${html}<button class="add-row-btn" onclick="cfgAddRow()">+ Νέα σειρά</button>`;
+}
+function cfgToggle(uid){cfgUmbs=cfgUmbs.map(u=>u.uid===uid?{...u,enabled:!u.enabled}:u);renderConfigPanel();}
+function cfgSetLabel(uid,val){cfgUmbs=cfgUmbs.map(u=>u.uid===uid?{...u,label:val}:u);}
+function cfgAddUmb(row){
+  const rowUs=cfgUmbs.filter(u=>u.row===row).sort((a,b)=>Number(a.label)-Number(b.label));
+  const last=rowUs.length?Number(rowUs[rowUs.length-1].label):row*100;
+  cfgUmbs=[...cfgUmbs,{uid:uid(),row,label:String(last+1),enabled:true}];
+  renderConfigPanel();
+}
+function cfgRemoveUmb(id){cfgUmbs=cfgUmbs.filter(u=>u.uid!==id);renderConfigPanel();}
+function cfgAddRow(){
+  const maxRow=cfgUmbs.length?Math.max(...cfgUmbs.map(u=>u.row)):0;
+  cfgUmbs=[...cfgUmbs,{uid:uid(),row:maxRow+1,label:String((maxRow+1)*100+1),enabled:true}];
+  renderConfigPanel();
+}
+function cfgRemoveRow(row){cfgUmbs=cfgUmbs.filter(u=>u.row!==row);renderConfigPanel();}
+function saveConfig(){
+  database.ref("config/umbrellas").set(cfgUmbs)
+    .then(()=>{closePanel();showToast("✓ Διάταξη αποθηκεύτηκε","s");})
+    .catch(()=>showToast("Σφάλμα","e"));
+}
+
+// ══ TOAST ══
+function showToast(msg,type){
+  if(toastTimer)clearTimeout(toastTimer);
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.className="toast "+type+" show";
+  toastTimer=setTimeout(()=>t.classList.remove("show"),3000);
+}
+
+// ══ CLOSE DROPDOWNS ══
+document.addEventListener("mousedown",function(e){
+  if(!e.target.closest("#date-box"))   document.getElementById("date-dropdown").classList.remove("open");
+  if(!e.target.closest("#login-box"))  document.getElementById("login-dropdown").classList.remove("open");
+  if(!e.target.closest("#search-box")){
+    document.getElementById("sr-dropdown").classList.remove("open");
+    document.getElementById("sr-dropdown").innerHTML="";
+  }
+});
+
+// ══ INIT ══
+setDate(TODAY);
+renderGrid();
+renderLegend();
+renderRowChips();
+</script>
+</body>
+</html>
