@@ -2,17 +2,24 @@
 <html lang="el">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#004d40"/>
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2972/2972185.png"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Paralia"/>
 <title>🏖 Paralia Kratisis</title>
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22Paralia%20Kratisis%22%2C%22short_name%22%3A%22Paralia%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ecfdf5%22%2C%22theme_color%22%3A%22%23004d40%22%2C%22orientation%22%3A%22portrait%22%7D"/>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <style>
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(160deg,#ecfdf5 0%,#e0f7fa 100%);min-height:100vh;padding-bottom:40px;-webkit-text-size-adjust:100%;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-user-select:none;user-select:none;}
+html{height:100%;overflow:hidden;position:fixed;width:100%;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(160deg,#ecfdf5 0%,#e0f7fa 100%);height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:none;-webkit-text-size-adjust:100%;padding-bottom:env(safe-area-inset-bottom,20px);}
+input,select,textarea{-webkit-user-select:text;user-select:text;}
 input,select,textarea{font-size:16px !important;}
 
 /* HEADER */
@@ -59,20 +66,22 @@ header{background:linear-gradient(135deg,#004d40,#00796b);padding:7px 10px;posit
 #pw-err{font-size:11px;color:#ef4444;margin-top:6px;display:none;}
 
 /* LEGEND */
-.legend{display:flex;gap:5px;padding:7px 10px;background:#fff;border-bottom:1px solid #e2e8f0;flex-wrap:wrap;align-items:center;}
-.lbtn{display:inline-flex;align-items:center;gap:5px;cursor:pointer;padding:4px 10px;border:1.5px solid transparent;background:transparent;border-radius:20px;font-size:12px;color:#444;font-family:inherit;}
+.legend{display:flex;gap:3px;padding:5px 8px;background:#fff;border-bottom:1px solid #e2e8f0;flex-wrap:nowrap;align-items:center;overflow-x:auto;}
+.lbtn{display:inline-flex;align-items:center;gap:3px;cursor:pointer;padding:3px 7px;border:1.5px solid transparent;background:transparent;border-radius:20px;font-size:11px;color:#444;font-family:inherit;white-space:nowrap;}
 .lbtn.active{background:#e0f7fa;border-color:#00796b;}
-.ldot{width:11px;height:11px;border-radius:50%;display:inline-block;flex-shrink:0;}
-.lcount{font-weight:700;font-size:13px;color:#333;}
-.clr-btn{color:#00796b;font-weight:700;border:none;background:transparent;cursor:pointer;font-size:12px;padding:4px 8px;font-family:inherit;}
+.ldot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.lcount{font-weight:700;font-size:12px;color:#333;}
+.clr-btn{color:#00796b;font-weight:700;border:none;background:transparent;cursor:pointer;font-size:12px;padding:3px 6px;font-family:inherit;white-space:nowrap;}
 .row-chips{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-left:auto;}
 .rtxt{font-size:11px;color:#888;}
-.rchip{border-radius:7px;padding:4px 9px;font-size:12px;font-weight:600;cursor:pointer;background:#f1f5f9;color:#555;border:1px solid #e2e8f0;font-family:inherit;}
+.rchip{border-radius:6px;padding:3px 7px;font-size:11px;font-weight:600;cursor:pointer;background:#f1f5f9;color:#555;border:1px solid #e2e8f0;font-family:inherit;white-space:nowrap;}
 .rchip.active{background:#004d40;color:#fff;border:none;}
 .viewer-tag{font-size:11px;color:#bbb;margin-left:4px;}
 
 /* GRID */
-.grid-wrap{padding:10px 6px;overflow-x:auto;}
+.grid-wrap{padding:10px 0;overflow:hidden;}
+.grid-scroller{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;padding:0 6px 10px;}
+.grid-inner{display:inline-block;transform-origin:top left;transition:transform 0.15s ease;}
 .grid-row{display:flex;align-items:flex-start;margin-bottom:6px;}
 .row-num{font-size:10px;font-weight:800;color:#059669;min-width:26px;padding-top:12px;text-align:right;padding-right:6px;flex-shrink:0;}
 .umbs{display:flex;gap:4px;flex-wrap:nowrap;}
@@ -82,6 +91,11 @@ header{background:linear-gradient(135deg,#004d40,#00796b);padding:7px 10px;posit
 .umb.hidden{background:transparent !important;border:1px dashed #ddd !important;opacity:.2;}
 .umb-num{font-size:10px;font-weight:800;line-height:1.2;margin-top:1px;}
 .umb-line{font-size:9px;line-height:1.15;text-align:center;max-width:46px;overflow:hidden;white-space:nowrap;}
+/* ZOOM BUTTONS */
+.zoom-bar{display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:4px 10px 0;background:transparent;}
+.zbtn{width:34px;height:34px;border-radius:50%;border:none;background:rgba(0,77,64,.13);color:#004d40;font-size:20px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0;}
+.zbtn:active{background:rgba(0,77,64,.28);}
+.zlvl{font-size:11px;font-weight:700;color:#888;min-width:34px;text-align:center;}
 
 /* OVERLAY */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:100;}
@@ -153,14 +167,6 @@ textarea.finp{height:52px;resize:none;}
         <div id="sr-dropdown" class="sr-dropdown"></div>
       </div>
 
-      <!-- DATE -->
-      <div id="date-box">
-        <button class="hbtn" onclick="toggleDate()" id="date-btn">📅 —</button>
-        <div id="date-dropdown">
-          <input id="date-inp" type="date" onchange="onDateChange(this.value)"/>
-        </div>
-      </div>
-
       <!-- ADMIN BUTTONS -->
       <div id="admin-btns" style="display:none;align-items:center;gap:4px;">
         <button class="hbtn" onclick="openPanel('staff')">Προσωπικό</button>
@@ -202,14 +208,31 @@ textarea.finp{height:52px;resize:none;}
       <span class="lcount" id="cnt-special">0</span><span>Σπέσιαλ</span>
     </button>
     <button class="clr-btn" id="clr-filter" style="display:none" onclick="clearFilter()">✕</button>
-    <div class="row-chips">
-      <span class="rtxt">Σειρά:</span>
-      <div id="row-chips-wrap" style="display:flex;gap:3px;flex-wrap:wrap;"></div>
-    </div>
-    <span class="viewer-tag" id="viewer-tag">👁</span>
+    <span class="viewer-tag" id="viewer-tag" style="margin-left:auto;">👁</span>
   </div>
 
-  <div class="grid-wrap" id="grid"></div>
+  <!-- ROW CHIPS + DATE + ZOOM -->
+  <div style="display:flex;align-items:center;padding:4px 8px;gap:5px;background:#fff;border-bottom:1px solid #e2e8f0;flex-wrap:nowrap;overflow-x:auto;">
+    <div id="row-chips-wrap" style="display:flex;gap:3px;flex-wrap:nowrap;flex:1;"></div>
+    <!-- DATE -->
+    <div id="date-box" style="position:relative;flex-shrink:0;">
+      <button class="hbtn" style="background:rgba(0,77,64,.12);color:#004d40;font-size:12px;padding:4px 8px;" onclick="toggleDate()" id="date-btn">📅 —</button>
+      <div id="date-dropdown">
+        <input id="date-inp" type="date" onchange="onDateChange(this.value)"/>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">
+      <button class="zbtn" onclick="zoomOut()">−</button>
+      <span class="zlvl" id="zlvl">100%</span>
+      <button class="zbtn" onclick="zoomIn()">+</button>
+    </div>
+  </div>
+
+  <div class="grid-wrap">
+    <div class="grid-scroller">
+      <div class="grid-inner" id="grid"></div>
+    </div>
+  </div>
 </div>
 
 <!-- RESERVATION MODAL -->
@@ -533,7 +556,9 @@ function renderModal(){
         <div class="full"><label class="flabel">Όνομα</label>
           <input class="finp" id="f-name" placeholder="π.χ. Γιώργος" value="${esc(f.name)}"
             oninput="currentForm.name=this.value" autocomplete="off"/></div>
-        <div><label class="flabel">Ώρα</label>
+        <div><label class="flabel">📅 Ημερομηνία</label>
+          <input class="finp" id="f-date" type="date" value="${selectedDate}" oninput="currentForm.date=this.value"/></div>
+        <div><label class="flabel">🕐 Ώρα</label>
           <input class="finp" id="f-time" type="time" value="${f.time}" oninput="currentForm.time=this.value"/></div>
         <div><label class="flabel">Υπάλληλος</label>
           <select class="finp" id="f-staff" onchange="currentForm.staff=this.value">
@@ -562,14 +587,15 @@ function saveRes(){
   const t=document.getElementById("f-time");   if(t)currentForm.time=t.value;
   const s=document.getElementById("f-staff");  if(s)currentForm.staff=s.value;
   const nt=document.getElementById("f-notes"); if(nt)currentForm.notes=nt.value;
-  // όνομα ΔΕΝ είναι υποχρεωτικό
+  const fd=document.getElementById("f-date");  if(fd)currentForm.date=fd.value;
+  const saveDate=currentForm.date||selectedDate;
   const entry={
-    label:currentModal.label,date:selectedDate,
+    label:currentModal.label,date:saveDate,
     name:(currentForm.name||"").trim(),time:currentForm.time||"",
     notes:(currentForm.notes||"").trim(),status:currentForm.status||"booked",
     staff:currentForm.staff||"",updatedAt:new Date().toISOString(),
   };
-  database.ref("reservations/"+safeKey(currentModal.label,selectedDate)).set(entry)
+  database.ref("reservations/"+safeKey(currentModal.label,saveDate)).set(entry)
     .then(()=>{showToast("✓ Αποθηκεύτηκε — Ομπρέλα "+currentModal.label,"s");closeModal();})
     .catch(()=>showToast("Σφάλμα αποθήκευσης","e"));
 }
@@ -733,6 +759,23 @@ function showToast(msg,type){
   const t=document.getElementById("toast");
   t.textContent=msg;t.className="toast "+type+" show";
   toastTimer=setTimeout(()=>t.classList.remove("show"),3000);
+}
+
+// ══ ZOOM ══
+let zoomLevel = 1.0;
+const ZOOM_STEPS = [0.6, 0.7, 0.8, 0.9, 1.0, 1.15, 1.3, 1.5];
+function applyZoom(){
+  const el=document.getElementById("grid");
+  if(el) el.style.transform=`scale(${zoomLevel})`;
+  document.getElementById("zlvl").textContent=Math.round(zoomLevel*100)+"%";
+}
+function zoomIn(){
+  const i=ZOOM_STEPS.indexOf(zoomLevel);
+  if(i<ZOOM_STEPS.length-1){zoomLevel=ZOOM_STEPS[i+1];applyZoom();}
+}
+function zoomOut(){
+  const i=ZOOM_STEPS.indexOf(zoomLevel);
+  if(i>0){zoomLevel=ZOOM_STEPS[i-1];applyZoom();}
 }
 
 // ══ CLOSE DROPDOWNS ══
