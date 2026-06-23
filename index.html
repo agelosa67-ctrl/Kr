@@ -171,8 +171,9 @@ textarea.finp{height:52px;resize:none;}
         <button class="hbtn" onclick="openPanel('staff')">Προσωπικό</button>
         <button class="hbtn" onclick="openConfig()">⚙</button>
         <button class="hbtn" id="trash-btn" onclick="openPanel('trash')">↩</button>
+        <button class="hbtn" onclick="openPanel('history')">📋</button>
         <button class="hbtn danger" id="clear-confirm-btn" style="display:none" onclick="clearAllToday()">Επιβεβαίωση</button>
-        <button class="hbtn" id="clear-btn" onclick="showClearConfirm()">🗑</button>
+        <button class="hbtn" id="clear-btn" onclick="showClearPickerModal()">🗑</button>
         <button class="hbtn exit-btn" onclick="doLogout()">Έξοδος</button>
       </div>
 
@@ -262,6 +263,28 @@ textarea.finp{height:52px;resize:none;}
     <div class="sticky-acts" id="panel-footer" style="display:none">
       <button class="btn btn-cancel" onclick="closePanel()">Ακύρωση</button>
       <button class="btn btn-save" onclick="saveConfig()">💾 Αποθήκευση</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLEAR DATE PICKER MODAL -->
+<div id="clear-picker-overlay" class="overlay" style="display:none" onclick="if(event.target===this)closeClearPicker()">
+  <div class="modal" style="max-width:340px">
+    <button class="big-x" onclick="closeClearPicker()">✕</button>
+    <div class="mstrip" style="background:#dc2626"></div>
+    <div class="mbody" style="padding-bottom:8px">
+      <div class="mtitle" style="margin-bottom:6px">🗑 Διαγραφή κρατήσεων</div>
+      <div style="font-size:13px;color:#555;margin-bottom:14px">Επίλεξε ημερομηνία για να διαγραφούν <b>όλες</b> οι κρατήσεις εκείνης της μέρας.</div>
+      <label class="flabel">📅 Ημερομηνία</label>
+      <input class="finp" id="clear-date-inp" type="date" style="margin-bottom:14px"/>
+      <div id="clear-count-msg" style="font-size:13px;color:#888;margin-bottom:12px;min-height:20px"></div>
+      <div id="clear-picker-confirm" style="display:none;background:#fff3f3;border:1.5px solid #ef4444;border-radius:10px;padding:10px;margin-bottom:10px;font-size:13px;color:#c62828;font-weight:700;text-align:center">
+        ⚠️ Σίγουρα; Θα διαγραφούν <span id="clear-confirm-count"></span> κρατήσεις!
+      </div>
+    </div>
+    <div class="sticky-acts">
+      <button class="btn btn-cancel" onclick="closeClearPicker()">Ακύρωση</button>
+      <button class="btn btn-del" id="clear-picker-btn" onclick="doClearPickerDelete()">🗑 Διαγραφή</button>
     </div>
   </div>
 </div>
@@ -794,30 +817,164 @@ function deleteRes(){
     .catch(()=>showToast("Σφάλμα","e"));
 }
 
-// ══ CLEAR ALL ══
-function showClearConfirm(){
-  clearConfirmVisible=true;
-  document.getElementById("clear-btn").style.display="none";
-  document.getElementById("clear-confirm-btn").style.display="";
-  setTimeout(()=>{if(clearConfirmVisible)clearClearConfirm();},4000);
+// ══ CLEAR ALL (με επιλογή ημερομηνίας) ══
+let clearPickerConfirmVisible=false;
+
+function showClearPickerModal(){
+  clearPickerConfirmVisible=false;
+  document.getElementById("clear-picker-confirm").style.display="none";
+  document.getElementById("clear-date-inp").value=selectedDate;
+  document.getElementById("clear-picker-overlay").style.display="flex";
+  updateClearCountMsg();
+  document.getElementById("clear-date-inp").addEventListener("change",updateClearCountMsg);
 }
-function clearClearConfirm(){
-  clearConfirmVisible=false;
-  document.getElementById("clear-btn").style.display="";
-  document.getElementById("clear-confirm-btn").style.display="none";
+function closeClearPicker(){
+  clearPickerConfirmVisible=false;
+  document.getElementById("clear-picker-overlay").style.display="none";
+  document.getElementById("clear-picker-confirm").style.display="none";
 }
-function clearAllToday(){
+function updateClearCountMsg(){
+  const d=document.getElementById("clear-date-inp").value;
+  if(!d){document.getElementById("clear-count-msg").textContent="";return;}
   const en=umbrellas.filter(u=>u.enabled);
-  const toDel=en.filter(u=>reservations[u.label+"|"+selectedDate]);
+  const cnt=en.filter(u=>reservations[u.label+"|"+d]).length;
+  document.getElementById("clear-count-msg").textContent=
+    cnt===0?`Δεν υπάρχουν κρατήσεις στις ${fmtDate(d)}.`
+           :`Βρέθηκαν ${cnt} κρατήσεις στις ${fmtDate(d)}.`;
+  // reset confirm αν άλλαξε ημ/νία
+  clearPickerConfirmVisible=false;
+  document.getElementById("clear-picker-confirm").style.display="none";
+}
+function doClearPickerDelete(){
+  const d=document.getElementById("clear-date-inp").value;
+  if(!d){showToast("Επίλεξε ημερομηνία","e");return;}
+  const en=umbrellas.filter(u=>u.enabled);
+  const toDel=en.filter(u=>reservations[u.label+"|"+d]);
+  if(toDel.length===0){showToast("Δεν υπάρχουν κρατήσεις","i");closeClearPicker();return;}
+  if(!clearPickerConfirmVisible){
+    // πρώτο κλικ → δείξε επιβεβαίωση
+    clearPickerConfirmVisible=true;
+    document.getElementById("clear-confirm-count").textContent=toDel.length;
+    document.getElementById("clear-picker-confirm").style.display="block";
+    return;
+  }
+  // δεύτερο κλικ → διαγραφή
   let p=Promise.resolve();
   toDel.forEach(u=>{
-    const entry=reservations[u.label+"|"+selectedDate];
+    const entry=reservations[u.label+"|"+d];
     const trashId=uid();
     p=p.then(()=>database.ref("trash/"+trashId).set({...entry,trashId,deletedAt:new Date().toISOString()}))
-       .then(()=>database.ref("reservations/"+safeKey(u.label,selectedDate)).remove());
+       .then(()=>database.ref("reservations/"+safeKey(u.label,d)).remove());
   });
-  p.then(()=>{clearClearConfirm();showToast("Διαγράφηκαν "+toDel.length+" κρατήσεις","i");})
+  p.then(()=>{closeClearPicker();showToast("Διαγράφηκαν "+toDel.length+" κρατήσεις ("+fmtDate(d)+")","i");})
    .catch(()=>showToast("Σφάλμα","e"));
+}
+
+// Παλιές συναρτήσεις (δεν χρησιμοποιούνται πια αλλά αφήνω για ασφάλεια)
+function showClearConfirm(){}
+function clearClearConfirm(){}
+function clearAllToday(){}
+
+// ══ HISTORY PANEL ══
+let historyFilterDate="";
+let historyDeleteConfirmDate="";
+
+function renderHistoryPanel(){
+  const allDates=[...new Set(Object.values(reservations).map(r=>r.date))].sort((a,b)=>b.localeCompare(a));
+  const filteredDates=historyFilterDate?allDates.filter(d=>d===historyFilterDate):allDates;
+
+  let html=`<div class="mtitle" style="margin-bottom:8px">📋 Ιστορικό Κρατήσεων</div>
+  <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
+    <input type="date" id="hist-date-inp" class="finp" style="flex:1;min-width:130px;" value="${esc(historyFilterDate)}"
+      onchange="historyFilterDate=this.value;historyDeleteConfirmDate='';renderHistoryPanel()"/>
+    ${historyFilterDate?`<button style="border:none;background:#f1f5f9;color:#64748b;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;" onclick="historyFilterDate='';historyDeleteConfirmDate='';renderHistoryPanel()">✕ Όλες</button>`:""}
+  </div>`;
+
+  if(allDates.length===0){
+    html+=`<p style="color:#bbb;font-size:13px;text-align:center;padding:20px 0">Δεν υπάρχουν κρατήσεις.</p>`;
+    document.getElementById("panel-body").innerHTML=html;
+    return;
+  }
+  if(filteredDates.length===0){
+    html+=`<p style="color:#bbb;font-size:13px;text-align:center;padding:20px 0">Δεν υπάρχουν κρατήσεις για αυτή την ημερομηνία.</p>`;
+    document.getElementById("panel-body").innerHTML=html;
+    return;
+  }
+
+  filteredDates.forEach(date=>{
+    const dayRes=Object.values(reservations).filter(r=>r.date===date).sort((a,b)=>Number(a.label)-Number(b.label));
+    const isToday=date===TODAY;
+    const isPast=date<TODAY;
+    const badge=isToday?'<span style="background:#059669;color:#fff;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;margin-left:4px">ΣΗΜΕΡΑ</span>'
+                :isPast?'<span style="background:#94a3b8;color:#fff;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;margin-left:4px">ΠΑΡΕΛΘΟΝ</span>'
+                       :'<span style="background:#f59e0b;color:#fff;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;margin-left:4px">ΜΕΛΛΟΝ</span>';
+
+    // Umbrella-style grid for this day (grouped by row)
+    const rowNums=[...new Set(umbrellas.map(u=>u.row))].sort((a,b)=>a-b);
+    let umbGridHtml="";
+    rowNums.forEach(row=>{
+      const rowUs=umbrellas.filter(u=>u.row===row&&u.enabled).sort((a,b)=>Number(a.label)-Number(b.label));
+      const rowHasRes=rowUs.some(u=>dayRes.find(r=>r.label===u.label));
+      if(!rowHasRes)return;
+      const umbsH=rowUs.map(u=>{
+        const res=dayRes.find(r=>r.label===u.label)||null;
+        if(!res)return`<div style="width:50px;height:62px;border-radius:10px;border:1px dashed #ddd;opacity:.2;flex-shrink:0"></div>`;
+        const sk=res.status||"booked";
+        const st=STATUS[sk]||STATUS.booked;
+        const nm=res.name.length>6?res.name.slice(0,5)+"…":res.name;
+        const nc=sk==="special"?"#92400e":"rgba(255,255,255,.95)";
+        const tc=sk==="special"?"#92400e":"rgba(255,255,255,.7)";
+        const staffPart=res.staff?" · "+res.staff.split(" ")[0]:"";
+        return `<div style="width:50px;height:62px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px;flex-shrink:0;border:2px solid ${st.border};background:${st.bg};box-shadow:0 2px 8px rgba(0,0,0,.12);">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2C7 2 3 6.5 3 11h9v9c0 .55.45 1 1 1s1-.45 1-1v-9h9c0-4.5-4-9-11-9z" fill="${st.icon}"/></svg>
+          <span style="font-size:10px;font-weight:800;line-height:1.2;color:${st.text}">${u.label}</span>
+          <span style="font-size:9px;line-height:1.15;text-align:center;max-width:46px;overflow:hidden;white-space:nowrap;color:${nc}">${esc(nm)}</span>
+          <span style="font-size:8px;line-height:1.15;text-align:center;max-width:46px;overflow:hidden;white-space:nowrap;color:${tc}">${res.time||""}${staffPart}</span>
+        </div>`;
+      }).join("");
+      umbGridHtml+=`<div style="display:flex;align-items:flex-start;margin-bottom:4px;">
+        <div style="font-size:10px;font-weight:800;color:#059669;min-width:26px;padding-top:12px;text-align:right;padding-right:6px;flex-shrink:0;">${row*100}</div>
+        <div style="display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;">${umbsH}</div>
+      </div>`;
+    });
+
+    const isConfirming=historyDeleteConfirmDate===date;
+    const deleteBtn=isConfirming
+      ?`<div style="display:flex;gap:5px;align-items:center;">
+          <button onclick="historyDeleteDay('${date}')" style="border:none;background:#dc2626;color:#fff;border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;">⚠️ Επιβεβαίωση</button>
+          <button onclick="historyDeleteConfirmDate='';renderHistoryPanel()" style="border:none;background:#f1f5f9;color:#64748b;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;">Ακύρωση</button>
+        </div>`
+      :`<button onclick="historyDeleteConfirmDate='${date}';renderHistoryPanel()" style="border:none;background:#fee2e2;color:#dc2626;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">🗑</button>`;
+
+    html+=`<div style="margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;padding-bottom:5px;border-bottom:2px solid #e2e8f0;flex-wrap:wrap;">
+        <span style="font-weight:900;font-size:14px;color:#004d40">${fmtDate(date)}</span>${badge}
+        <span style="font-size:12px;color:#888;margin-left:auto">${dayRes.length} κρατήσεις</span>
+        <button onclick="setDate('${date}');closePanel()" style="border:none;background:#e0f7fa;color:#00796b;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">Προβολή</button>
+        ${deleteBtn}
+      </div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">${umbGridHtml}</div>
+    </div>`;
+  });
+
+  document.getElementById("panel-body").innerHTML=html;
+}
+
+function historyDeleteDay(date){
+  historyDeleteConfirmDate="";
+  const toDel=Object.values(reservations).filter(r=>r.date===date);
+  if(toDel.length===0){renderHistoryPanel();return;}
+  let p=Promise.resolve();
+  toDel.forEach(entry=>{
+    const trashId=uid();
+    p=p.then(()=>database.ref("trash/"+trashId).set({...entry,trashId,deletedAt:new Date().toISOString()}))
+       .then(()=>database.ref("reservations/"+safeKey(entry.label,entry.date)).remove());
+  });
+  p.then(()=>{
+    showToast("Διαγράφηκαν "+toDel.length+" κρατήσεις ("+fmtDate(date)+")","i");
+    if(historyFilterDate===date)historyFilterDate="";
+    renderHistoryPanel();
+  }).catch(()=>showToast("Σφάλμα","e"));
 }
 
 // ══ PANELS ══
@@ -826,6 +983,7 @@ function openPanel(type){
   document.getElementById("panel-footer").style.display="none";
   if(type==="staff") renderStaffPanel();
   else if(type==="trash") renderTrashPanel();
+  else if(type==="history"){historyFilterDate="";historyDeleteConfirmDate="";renderHistoryPanel();}
   document.getElementById("panel-overlay").style.display="flex";
 }
 function closePanel(){document.getElementById("panel-overlay").style.display="none";currentPanel=null;}
