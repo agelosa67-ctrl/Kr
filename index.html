@@ -18,13 +18,13 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-user-select:none;user-select:none;}
 html{height:100%;overflow:hidden;position:fixed;width:100%;}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(160deg,#ecfdf5 0%,#e0f7fa 100%);height:100%;display:flex;flex-direction:column;overflow:hidden;-webkit-text-size-adjust:100%;padding-bottom:env(safe-area-inset-bottom,20px);}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(160deg,#ecfdf5 0%,#e0f7fa 100%);height:100%;display:flex;flex-direction:column;overflow:hidden;-webkit-text-size-adjust:100%;padding-bottom:env(safe-area-inset-bottom,0px);}
 #app-root{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:none;display:flex;flex-direction:column;}
 input,select,textarea{-webkit-user-select:text;user-select:text;}
 input,select,textarea{font-size:16px !important;}
 
 /* HEADER */
-header{background:linear-gradient(135deg,#004d40,#00796b);padding:7px 10px;position:sticky;top:0;z-index:50;color:#fff;}
+header{background:linear-gradient(135deg,#004d40,#00796b);padding:7px 10px;padding-top:calc(7px + env(safe-area-inset-top, 0px));position:sticky;top:0;z-index:50;color:#fff;}
 .hrow{display:flex;align-items:center;gap:5px;min-height:36px;}
 .sync-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#fbbf24;}
 .sync-dot.ok{background:#4ade80;box-shadow:0 0 6px #4ade80;}
@@ -83,12 +83,15 @@ header{background:linear-gradient(135deg,#004d40,#00796b);padding:7px 10px;posit
 .grid-row{display:flex;align-items:flex-start;margin-bottom:6px;}
 .row-num{font-size:10px;font-weight:800;color:#059669;min-width:26px;padding-top:12px;text-align:right;padding-right:6px;flex-shrink:0;}
 .umbs{display:flex;gap:4px;flex-wrap:nowrap;padding-bottom:4px;}
-.umb{width:50px;height:62px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px;flex-shrink:0;border:2px solid transparent;cursor:pointer;}
+.umbs.wrap-mode{flex-wrap:wrap;}
+.umb.big{width:64px;height:76px;}
+.umb-line.big{max-width:60px;font-size:10px;white-space:normal;word-break:break-word;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.umb{width:56px;height:72px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px;flex-shrink:0;border:2px solid transparent;cursor:pointer;}
 .umb:active{opacity:.7;}
 .umb.viewer-mode{cursor:default;}
 .umb.hidden{background:transparent !important;border:1px dashed #ddd !important;opacity:.2;}
-.umb-num{font-size:10px;font-weight:800;line-height:1.2;margin-top:1px;}
-.umb-line{font-size:9px;line-height:1.15;text-align:center;max-width:46px;overflow:hidden;white-space:nowrap;}
+.umb-num{font-size:11px;font-weight:900;line-height:1.2;margin-top:1px;}
+.umb-line{font-size:10px;font-weight:700;line-height:1.2;text-align:center;max-width:52px;white-space:normal;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 /* ZOOM BUTTONS */
 .zoom-bar{display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:4px 10px 0;background:transparent;}
 .zbtn{width:34px;height:34px;border-radius:50%;border:none;background:rgba(0,77,64,.13);color:#004d40;font-size:20px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0;}
@@ -306,7 +309,8 @@ const database = firebase.database();
 
 // ══ CONSTANTS ══
 const PASSWORD = "imperial2018";
-const TODAY    = new Date().toISOString().slice(0,10);
+function localToday(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+const TODAY    = localToday();
 
 const STATUS = {
   free:    {bg:"#f0fdf4",border:"#86efac",icon:"#4ade80",text:"#555",    label:"Ελεύθερη"},
@@ -376,6 +380,7 @@ function getStatusKey(label){const r=getRes(label);return r?(r.status||"booked")
 function renderGrid(){
   const rows=[...new Set(umbrellas.map(u=>u.row))].sort((a,b)=>a-b);
   const show=filterRow===0?rows:[filterRow];
+  const singleRow=filterRow!==0;
   let html="";
   show.forEach(row=>{
     const rowUs=umbrellas.filter(u=>u.row===row&&u.enabled).sort((a,b)=>Number(a.label)-Number(b.label));
@@ -383,38 +388,39 @@ function renderGrid(){
     const umbsH=rowUs.map(u=>{
       const res=getRes(u.label);
       const sk=getStatusKey(u.label);
-      // Βρες μελλοντική κράτηση
       const future=!res?Object.values(reservations)
         .filter(r=>r.label===u.label&&r.date>selectedDate)
         .sort((a,b)=>a.date.localeCompare(b.date))[0]||null:null;
-      // Η ομπρέλα δείχνει πάντα την κατάσταση της ΕΠΙΛΕΓΜΕΝΗΣ μέρας
-      // Αν έχει μελλοντική κράτηση αλλά όχι σήμερα → παραμένει πράσινη/ελεύθερη
       const effectiveSk=res?sk:"free";
       const st=STATUS[effectiveSk];
       if(filterStatus!=="all"&&effectiveSk!==filterStatus)
-        return '<div class="umb hidden" style="width:50px;height:62px"></div>';
-      const nm=res?(res.name.length>6?res.name.slice(0,5)+"…":res.name):"";
-      const nc=sk==="special"?"#92400e":"rgba(255,255,255,.95)";
-      const tc=sk==="special"?"#92400e":"rgba(255,255,255,.7)";
+        return `<div class="umb hidden${singleRow?" big":""}" style="width:${singleRow?64:56}px;height:${singleRow?76:72}px"></div>`;
+      // Πλήρες όνομα πάντα
+      const nm=res?res.name:"";
+      const nc="#000";
+      const tc=sk==="special"?"#92400e":"rgba(0,0,0,.6)";
       const staffPart=res&&res.staff?" · "+res.staff.split(" ")[0]:"";
-      // Badge μελλοντικής κράτησης (πράσινη ομπρέλα, μικρό πορτοκαλί badge)
       let nextTag="";
       if(!res&&future){
         const[y,m,d]=future.date.split("-");
-        nextTag=`<span class="umb-line" style="color:#c2410c;font-size:7px;font-weight:800;background:rgba(255,237,213,.9);border-radius:3px;padding:0 2px;line-height:1.4;">📅 ${d}/${m}</span>`;
+        nextTag=`<span class="umb-line${singleRow?" big":""}" style="color:#c2410c;font-size:7px;font-weight:800;background:rgba(255,237,213,.9);border-radius:3px;padding:0 2px;line-height:1.4;">📅 ${d}/${m}</span>`;
       }
-      return `<button class="umb${loggedIn?"":" viewer-mode"}" onclick="onUmbClick('${u.uid}')"
+      return `<button class="umb${singleRow?" big":""}${loggedIn?"":" viewer-mode"}" onclick="onUmbClick('${u.uid}')"
         style="background:${st.bg};border:2px solid ${future&&!res?"#fb923c":st.border};box-shadow:${res?"0 2px 8px rgba(0,0,0,.12)":future?"0 2px 8px rgba(251,146,60,.25)":"0 1px 3px rgba(0,0,0,.05)"}"
         title="${res?esc(res.name)+" · "+(res.time||""):future?"Κράτηση "+fmtDate(future.date)+" · "+esc(future.name):u.label}">
         <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2C7 2 3 6.5 3 11h9v9c0 .55.45 1 1 1s1-.45 1-1v-9h9c0-4.5-4-9-11-9z" fill="${st.icon}"/></svg>
         <span class="umb-num" style="color:${st.text}">${u.label}</span>
-        ${res?`<span class="umb-line" style="color:${nc}">${esc(nm)}</span>
+        ${res?`<span class="umb-line${singleRow?" big":""}" style="color:${nc}">${esc(nm)}</span>
                <span class="umb-line" style="color:${tc};font-size:8px">${res.time||""}${staffPart}</span>`:""}
         ${nextTag}
       </button>`;
     }).join("");
-    html+=`<div class="grid-row"><div class="row-num">${row*100}</div><div class="umbs">${umbsH}</div></div>`;
+    html+=`<div class="grid-row"><div class="row-num">${row*100}</div><div class="umbs${singleRow?" wrap-mode":""}">${umbsH}</div></div>`;
   });
+  // Στο single-row mode, κάνουμε τον wrapper block (όχι inline) για να τυλίξει σωστά
+  const wrapper=document.getElementById("zoom-wrapper");
+  if(singleRow){wrapper.style.display="block";wrapper.style.minWidth="0";wrapper.style.width="100%";}
+  else{wrapper.style.display="inline-block";wrapper.style.minWidth="100%";wrapper.style.width="";}
   document.getElementById("grid").innerHTML=html;
 }
 
@@ -927,14 +933,14 @@ function renderHistoryPanel(){
         const staffPart=res.staff?" · "+res.staff.split(" ")[0]:"";
         return `<div style="width:50px;height:62px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px;flex-shrink:0;border:2px solid ${st.border};background:${st.bg};box-shadow:0 2px 8px rgba(0,0,0,.12);">
           <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2C7 2 3 6.5 3 11h9v9c0 .55.45 1 1 1s1-.45 1-1v-9h9c0-4.5-4-9-11-9z" fill="${st.icon}"/></svg>
-          <span style="font-size:10px;font-weight:800;line-height:1.2;color:${st.text}">${u.label}</span>
-          <span style="font-size:9px;line-height:1.15;text-align:center;max-width:46px;overflow:hidden;white-space:nowrap;color:${nc}">${esc(nm)}</span>
+          <span style="font-size:11px;font-weight:900;line-height:1.2;color:${st.text}">${u.label}</span>
+          <span style="font-size:10px;font-weight:700;line-height:1.15;text-align:center;max-width:46px;overflow:hidden;white-space:nowrap;color:${nc}">${esc(nm)}</span>
           <span style="font-size:8px;line-height:1.15;text-align:center;max-width:46px;overflow:hidden;white-space:nowrap;color:${tc}">${res.time||""}${staffPart}</span>
         </div>`;
       }).join("");
       umbGridHtml+=`<div style="display:flex;align-items:flex-start;margin-bottom:4px;">
         <div style="font-size:10px;font-weight:800;color:#059669;min-width:26px;padding-top:12px;text-align:right;padding-right:6px;flex-shrink:0;">${row*100}</div>
-        <div style="display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;">${umbsH}</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;padding-bottom:4px;">${umbsH}</div>
       </div>`;
     });
 
@@ -953,7 +959,7 @@ function renderHistoryPanel(){
         <button onclick="setDate('${date}');closePanel()" style="border:none;background:#e0f7fa;color:#00796b;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">Προβολή</button>
         ${deleteBtn}
       </div>
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">${umbGridHtml}</div>
+      <div>${umbGridHtml}</div>
     </div>`;
   });
 
@@ -1128,18 +1134,7 @@ function applyZoom(){
   const s=zoomLevel;
   el.style.transform=`scale(${s})`;
   el.style.transformOrigin="top left";
-  // Αντισταθμίζουμε το shrink: ο wrapper δείχνει μικρότερος αλλά
-  // το scrollable container πρέπει να ξέρει το πραγματικό μέγεθος.
   el.style.width=`${100/s}%`;
-  el.style.minWidth=`${100/s}%`;
-  // Ύψος: όταν zoom out το transform δεν αλλάζει layout height,
-  // οπότε βάζουμε ρητά το scaled ύψος στον wrapper ώστε να μην μείνει κενό.
-  requestAnimationFrame(()=>{
-    const naturalH=el.scrollHeight;
-    el.style.height="";         // reset
-    const scaledH=Math.ceil(naturalH*s);
-    el.parentElement.style.minHeight=scaledH+"px";
-  });
   document.getElementById("zlvl").textContent=Math.round(s*100)+"%";
 }
 function zoomIn(){
@@ -1185,6 +1180,17 @@ autoLogin();
 renderGrid();
 renderLegend();
 renderRowChips();
+
+// Αυτόματη ανανέωση ημέρας τα μεσάνυχτα
+(function scheduleMidnightRefresh(){
+  const now=new Date();
+  const msToMidnight=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,5)-now;
+  setTimeout(()=>{
+    const newDay=localToday();
+    if(newDay!==selectedDate) setDate(newDay);
+    scheduleMidnightRefresh();
+  },msToMidnight);
+})();
 </script>
 </body>
 </html>
