@@ -147,7 +147,7 @@ textarea.finp{height:52px;resize:none;}
 .toast.e{background:#dc2626;}
 
 /* QUICK POPUP */
-#quick-popup{position:fixed;z-index:500;background:#fff;border-radius:18px;box-shadow:0 8px 40px rgba(0,0,0,.28);padding:14px 16px 12px;width:230px;display:none;flex-direction:column;gap:8px;}
+#quick-popup{position:fixed;z-index:500;background:#fff;border-radius:18px;box-shadow:0 8px 40px rgba(0,0,0,.28);padding:14px 16px 12px;width:270px;display:none;flex-direction:column;gap:8px;}
 #quick-popup.show{display:flex;}
 .qp-title{font-size:13px;font-weight:900;color:#004d40;text-align:center;}
 .qp-status-row{display:flex;gap:6px;}
@@ -184,6 +184,11 @@ textarea.finp{height:52px;resize:none;}
 .mb-actions{display:flex;gap:6px;}
 .mb-save{flex:1;padding:11px;border-radius:12px;border:none;background:#4ade80;color:#004d40;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;}
 .mb-del{padding:11px 16px;border-radius:12px;border:none;background:#dc2626;color:#fff;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;}
+
+/* ARRIVED CHECKBOX */
+.umb-arrived-wrap{position:absolute;top:2px;right:2px;}
+.umb-arrived{width:14px;height:14px;accent-color:#059669;cursor:pointer;}
+.umb{position:relative;}
 
 /* UNDO BAR */
 #undo-bar{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:450;background:#1e293b;color:#fff;border-radius:50px;padding:10px 18px;display:none;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.3);white-space:nowrap;}
@@ -260,6 +265,7 @@ textarea.finp{height:52px;resize:none;}
       <span class="ldot" style="background:#FFD600;border:1.5px solid #F9A825"></span>
       <span class="lcount" id="cnt-special">0</span><span>Σπέσιαλ</span>
     </button>
+    <span id="arrived-legend" style="display:none;font-size:11px;font-weight:700;color:#16a34a;white-space:nowrap;padding:3px 7px;background:#dcfce7;border-radius:20px;">✓ <span id="cnt-arrived">0</span> ήρθαν</span>
     <button class="clr-btn" id="clr-filter" style="display:none" onclick="clearFilter()">✕</button>
     <span class="viewer-tag" id="viewer-tag" style="margin-left:auto;">👁</span>
   </div>
@@ -419,6 +425,7 @@ let staff        = [];
 let reservations = {};
 let trash        = {};
 let cfgUmbs      = [];
+let arrivedToday = {}; // label -> true, stored in localStorage, reset daily
 let currentModal = null;
 let currentForm  = {};
 let toastTimer   = null;
@@ -436,6 +443,26 @@ function safeKey(label,date){return label+"__"+date;}
 function uid(){return Math.random().toString(36).slice(2,9);}
 function fmtDate(d){if(!d)return"";const[y,m,day]=d.split("-");return day+"/"+m+"/"+y;}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+
+// ══ ARRIVED (checkbox per day, resets at midnight) ══
+function loadArrivedToday(){
+  const key="arrived_"+TODAY;
+  try{ arrivedToday=JSON.parse(localStorage.getItem(key)||"{}"); }
+  catch(e){ arrivedToday={}; }
+  // Clean old keys
+  Object.keys(localStorage).filter(k=>k.startsWith("arrived_")&&k!==key).forEach(k=>localStorage.removeItem(k));
+}
+function saveArrivedToday(){
+  localStorage.setItem("arrived_"+TODAY, JSON.stringify(arrivedToday));
+}
+function toggleArrived(label,e){
+  e.stopPropagation();
+  arrivedToday[label]=!arrivedToday[label];
+  if(!arrivedToday[label]) delete arrivedToday[label];
+  saveArrivedToday();
+  renderGrid();
+}
+loadArrivedToday();
 
 // ══ FIREBASE LISTENERS ══
 database.ref("reservations").on("value", snap=>{
@@ -496,13 +523,18 @@ function renderGrid(){
         const[y,m,d]=future.date.split("-");
         nextTag=`<span class="umb-line${singleRow?" big":""}" style="color:#c2410c;font-size:7px;font-weight:800;background:rgba(255,237,213,.9);border-radius:3px;padding:0 2px;line-height:1.4;">📅 ${d}/${m}</span>`;
       }
+      const isArrived = res && selectedDate===TODAY && !!arrivedToday[u.label];
+      const arrivedChk = (res && loggedIn && selectedDate===TODAY)
+        ? `<div class="umb-arrived-wrap"><input type="checkbox" class="umb-arrived" ${isArrived?"checked":""} onclick="toggleArrived('${u.label}',event)" title="Ήρθε"/></div>`
+        : "";
       return `<button class="umb${singleRow?" big":""}${loggedIn?"":" viewer-mode"}${multiMode&&multiSelected.has(u.uid)?" multi-selected":""}"
         onclick="onUmbClick('${u.uid}')"
-        style="background:${st.bg};border:2px solid ${future&&!res?"#fb923c":st.border};box-shadow:${res?"0 2px 8px rgba(0,0,0,.12)":future?"0 2px 8px rgba(251,146,60,.25)":"0 1px 3px rgba(0,0,0,.05)"}"
+        style="background:${isArrived?"#dcfce7":st.bg};border:2px solid ${isArrived?"#16a34a":future&&!res?"#fb923c":st.border};box-shadow:${res?"0 2px 8px rgba(0,0,0,.12)":future?"0 2px 8px rgba(251,146,60,.25)":"0 1px 3px rgba(0,0,0,.05)"}"
         title="${res?esc(res.name)+" · "+(res.time||""):future?"Κράτηση "+fmtDate(future.date)+" · "+esc(future.name):u.label}">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2C7 2 3 6.5 3 11h9v9c0 .55.45 1 1 1s1-.45 1-1v-9h9c0-4.5-4-9-11-9z" fill="${st.icon}"/></svg>
-        <span class="umb-num" style="color:${st.text}">${multiMode&&multiSelected.has(u.uid)?"✓":u.label}</span>
-        ${res?`<span class="umb-line${singleRow?" big":""}" style="color:${nc}">${esc(nm)}</span>
+        ${arrivedChk}
+        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2C7 2 3 6.5 3 11h9v9c0 .55.45 1 1 1s1-.45 1-1v-9h9c0-4.5-4-9-11-9z" fill="${isArrived?"#16a34a":st.icon}"/></svg>
+        <span class="umb-num" style="color:${isArrived?"#166534":st.text}">${multiMode&&multiSelected.has(u.uid)?"✓":u.label}</span>
+        ${res?`<span class="umb-line${singleRow?" big":""}" style="color:${isArrived?"#166534":nc}">${esc(nm)}</span>
                <span class="umb-line" style="color:${tc};font-size:8px">${res.time||""}${staffPart}</span>`:""}
         ${nextTag}
       </button>`;
@@ -529,6 +561,17 @@ function renderLegend(){
   });
   document.getElementById("clr-filter").style.display=filterStatus!=="all"?"":"none";
   document.getElementById("viewer-tag").style.display=loggedIn?"none":"";
+  // Arrived count (only for today)
+  const arrivedLegend=document.getElementById("arrived-legend");
+  if(arrivedLegend){
+    if(selectedDate===TODAY){
+      const arrivedCount=Object.keys(arrivedToday).length;
+      document.getElementById("cnt-arrived").textContent=arrivedCount;
+      arrivedLegend.style.display=arrivedCount>0?"":"none";
+    } else {
+      arrivedLegend.style.display="none";
+    }
+  }
 }
 
 function renderRowChips(){
@@ -803,13 +846,12 @@ function qpSetStatus(s){qpStatus=s;qpRenderStatus();}
 function qpClose(){document.getElementById("quick-popup").classList.remove("show");qpUid=null;qpLabel=null;}
 function qpSave(){
   const name=(document.getElementById("qp-name").value||"").trim();
-  if(!name){document.getElementById("qp-name").focus();return;}
   const saveDate=document.getElementById("qp-date").value||selectedDate;
   const time=document.getElementById("qp-time").value||"10:00";
   const staffVal=document.getElementById("qp-staff").value||"";
   const entry={label:qpLabel,date:saveDate,name,time,notes:"",status:qpStatus,staff:staffVal,updatedAt:new Date().toISOString()};
   database.ref("reservations/"+safeKey(qpLabel,saveDate)).set(entry)
-    .then(()=>{showToast("✓ Ομπρέλα "+qpLabel+" — "+name,"s");qpClose();})
+    .then(()=>{showToast("✓ Ομπρέλα "+qpLabel+(name?" — "+name:""),"s");qpClose();})
     .catch(()=>showToast("Σφάλμα","e"));
 }
 function qpNameInput(val){
